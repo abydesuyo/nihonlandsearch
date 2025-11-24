@@ -148,7 +148,8 @@ export class SuumoLandScraper {
     params.append('ta', prefectureCode);
 
     // Pagination
-    params.append('pn', page.toString());
+    // Suumo uses 'page' parameter now (formerly 'pn')
+    params.append('page', page.toString());
 
     // Results per page (default to 100)
     params.append('pc', (filters.limit || 100).toString());
@@ -189,7 +190,17 @@ export class SuumoLandScraper {
       }
     }
 
-    return `${this.baseUrl}?${params.toString()}`;
+    const finalUrl = `${this.baseUrl}?${params.toString()}`;
+    const actualSuumoUrl = finalUrl.replace('/suumo-api', 'https://suumo.jp');
+
+    console.log('=== SUUMO URL DEBUG ===');
+    console.log('Actual Suumo URL:', actualSuumoUrl);
+    console.log('Min Area (mb):', filters.minArea);
+    console.log('Max Area (tt):', filters.maxArea);
+    console.log('Full params:', params.toString());
+    console.log('=======================');
+
+    return finalUrl;
   }
 
 

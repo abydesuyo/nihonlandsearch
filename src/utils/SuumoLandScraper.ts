@@ -205,22 +205,31 @@ export class SuumoLandScraper {
 
 
   private parsePrice(text: string): bigint {
-    // Example: "1761万7000円～3080万円" -> take min: 17617000
-    // Example: "3080万円" -> 30800000
+    // Japanese price format examples:
+    // "44億9000万円" -> 4,490,000,000 (4.49 billion)
+    // "1億2000万円" -> 120,000,000 (120 million)
+    // "9000万円" -> 90,000,000 (90 million)
+    // "1761万7000円～3080万円" -> take min: 17,617,000
+
     const cleanText = text.replace(/,/g, '').split('～')[0];
     let price = 0;
 
-    const manMatch = cleanText.match(/(\d+)万/);
+    // Parse 億 (oku = hundred million = 100,000,000)
+    const okuMatch = cleanText.match(/(\d+)億/);
+    if (okuMatch) {
+      price += parseInt(okuMatch[1]) * 100000000;
+    }
+
+    // Parse 万 (man = ten thousand = 10,000)
+    // Match the pattern after 億 if present, or standalone
+    const manMatch = cleanText.match(/億(\d+)万/) || cleanText.match(/^(\d+)万/);
     if (manMatch) {
       price += parseInt(manMatch[1]) * 10000;
     }
 
-    const yenMatch = cleanText.match(/万(\d+)円/) || cleanText.match(/(\d+)円/);
-    if (yenMatch && !cleanText.includes('万')) {
-      // Case: "5000円" (unlikely for land but possible for rent)
-      price += parseInt(yenMatch[1]);
-    } else if (yenMatch) {
-      // Case: "1761万7000円" -> 7000 part
+    // Parse remaining yen after 万
+    const yenMatch = cleanText.match(/万(\d+)円/);
+    if (yenMatch) {
       price += parseInt(yenMatch[1]);
     }
 

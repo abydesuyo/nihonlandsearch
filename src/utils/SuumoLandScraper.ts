@@ -191,8 +191,13 @@ export class SuumoLandScraper {
     params.append('pc', (filters.limit || 100).toString());
 
     // Price (kb and kt are in 万円 - 10,000 yen units)
-    if (filters.minPrice) params.append('kb', (filters.minPrice / 10000).toString());
-    if (filters.maxPrice) params.append('kt', (filters.maxPrice / 10000).toString());
+    // Guard with > 0 to skip 0/undefined/NaN; use Math.floor to ensure integer values
+    if (filters.minPrice && filters.minPrice > 0) {
+      params.append('kb', Math.floor(filters.minPrice / 10000).toString());
+    }
+    if (filters.maxPrice && filters.maxPrice > 0) {
+      params.append('kt', Math.floor(filters.maxPrice / 10000).toString());
+    }
 
     // Area in m2 (mb = minimum, tt = maximum)
     // Suumo has a limit of 150 sqm for these parameters

@@ -120,8 +120,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                             type="number"
                             id="minPrice"
                             placeholder="e.g. 1000"
-                            value={filters.minPrice ? filters.minPrice / 10000 : ''}
-                            onChange={(e) => setFilters({ ...filters, minPrice: e.target.value ? Number(e.target.value) * 10000 : undefined })}
+                            value={filters.minPrice && filters.minPrice > 0 ? Math.floor(filters.minPrice / 10000) : ''}
+                            onChange={(e) => setFilters({ ...filters, minPrice: e.target.value && Number(e.target.value) > 0 ? Math.floor(Number(e.target.value)) * 10000 : undefined })}
                             min="0"
                             step="100"
                         />
@@ -132,8 +132,8 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                             type="number"
                             id="maxPrice"
                             placeholder="e.g. 5000"
-                            value={filters.maxPrice ? filters.maxPrice / 10000 : ''}
-                            onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value ? Number(e.target.value) * 10000 : undefined })}
+                            value={filters.maxPrice && filters.maxPrice > 0 ? Math.floor(filters.maxPrice / 10000) : ''}
+                            onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value && Number(e.target.value) > 0 ? Math.floor(Number(e.target.value)) * 10000 : undefined })}
                             min="0"
                             step="100"
                         />

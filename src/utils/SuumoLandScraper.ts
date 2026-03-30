@@ -3,29 +3,65 @@ import * as cheerio from 'cheerio';
 import { LandProperty, LandSearchFilters, LandUseZone, LandShape, RoadDirection, LandRights } from '../types/LandScraperSchema';
 
 // Mapping of prefecture names to Suumo codes
-// ar: Area code (030: Kanto, 060: Kansai, etc.)
-// ta: Prefecture code
+// ar: Area code (010: Hokkaido, 020: Tohoku, 030: Kanto, 040: Shinetsu/Hokuriku, 050: Tokai, 060: Kansai, 070: Chugoku, 080: Shikoku, 090: Kyushu/Okinawa)
+// ta: JIS prefecture code (01–47)
 const PREFECTURE_CODES: Record<string, { area: string; prefecture: string }> = {
-  'Tokyo': { area: '030', prefecture: '13' },
-  'tokyo': { area: '030', prefecture: '13' },
-  'Kanagawa': { area: '030', prefecture: '14' },
-  'kanagawa': { area: '030', prefecture: '14' },
-  'Saitama': { area: '030', prefecture: '11' },
-  'saitama': { area: '030', prefecture: '11' },
-  'Chiba': { area: '030', prefecture: '12' },
-  'chiba': { area: '030', prefecture: '12' },
-  'Osaka': { area: '060', prefecture: '27' },
-  'osaka': { area: '060', prefecture: '27' },
-  'Kyoto': { area: '060', prefecture: '26' },
-  'kyoto': { area: '060', prefecture: '26' },
-  'Hyogo': { area: '060', prefecture: '28' },
-  'hyogo': { area: '060', prefecture: '28' },
-  'Aichi': { area: '050', prefecture: '23' }, // Tokai
-  'aichi': { area: '050', prefecture: '23' },
-  'Hokkaido': { area: '010', prefecture: '01' },
+  // Hokkaido
   'hokkaido': { area: '010', prefecture: '01' },
-  'Fukuoka': { area: '090', prefecture: '40' }, // Kyushu
-  'fukuoka': { area: '090', prefecture: '40' }
+  // Tohoku
+  'aomori': { area: '020', prefecture: '02' },
+  'iwate': { area: '020', prefecture: '03' },
+  'miyagi': { area: '020', prefecture: '04' },
+  'akita': { area: '020', prefecture: '05' },
+  'yamagata': { area: '020', prefecture: '06' },
+  'fukushima': { area: '020', prefecture: '07' },
+  // Kanto
+  'ibaraki': { area: '030', prefecture: '08' },
+  'tochigi': { area: '030', prefecture: '09' },
+  'gunma': { area: '030', prefecture: '10' },
+  'saitama': { area: '030', prefecture: '11' },
+  'chiba': { area: '030', prefecture: '12' },
+  'tokyo': { area: '030', prefecture: '13' },
+  'kanagawa': { area: '030', prefecture: '14' },
+  // Shinetsu / Hokuriku
+  'niigata': { area: '040', prefecture: '15' },
+  'toyama': { area: '040', prefecture: '16' },
+  'ishikawa': { area: '040', prefecture: '17' },
+  'fukui': { area: '040', prefecture: '18' },
+  'yamanashi': { area: '040', prefecture: '19' },
+  'nagano': { area: '040', prefecture: '20' },
+  // Tokai
+  'gifu': { area: '050', prefecture: '21' },
+  'shizuoka': { area: '050', prefecture: '22' },
+  'aichi': { area: '050', prefecture: '23' },
+  'mie': { area: '050', prefecture: '24' },
+  // Kansai
+  'shiga': { area: '060', prefecture: '25' },
+  'kyoto': { area: '060', prefecture: '26' },
+  'osaka': { area: '060', prefecture: '27' },
+  'hyogo': { area: '060', prefecture: '28' },
+  'nara': { area: '060', prefecture: '29' },
+  'wakayama': { area: '060', prefecture: '30' },
+  // Chugoku
+  'tottori': { area: '070', prefecture: '31' },
+  'shimane': { area: '070', prefecture: '32' },
+  'okayama': { area: '070', prefecture: '33' },
+  'hiroshima': { area: '070', prefecture: '34' },
+  'yamaguchi': { area: '070', prefecture: '35' },
+  // Shikoku
+  'tokushima': { area: '080', prefecture: '36' },
+  'kagawa': { area: '080', prefecture: '37' },
+  'ehime': { area: '080', prefecture: '38' },
+  'kochi': { area: '080', prefecture: '39' },
+  // Kyushu / Okinawa
+  'fukuoka': { area: '090', prefecture: '40' },
+  'saga': { area: '090', prefecture: '41' },
+  'nagasaki': { area: '090', prefecture: '42' },
+  'kumamoto': { area: '090', prefecture: '43' },
+  'oita': { area: '090', prefecture: '44' },
+  'miyazaki': { area: '090', prefecture: '45' },
+  'kagoshima': { area: '090', prefecture: '46' },
+  'okinawa': { area: '090', prefecture: '47' },
 };
 
 export class SuumoLandScraper {
@@ -205,22 +241,31 @@ export class SuumoLandScraper {
 
 
   private parsePrice(text: string): bigint {
-    // Example: "1761万7000円～3080万円" -> take min: 17617000
-    // Example: "3080万円" -> 30800000
+    // Japanese price format examples:
+    // "44億9000万円" -> 4,490,000,000 (4.49 billion)
+    // "1億2000万円" -> 120,000,000 (120 million)
+    // "9000万円" -> 90,000,000 (90 million)
+    // "1761万7000円～3080万円" -> take min: 17,617,000
+
     const cleanText = text.replace(/,/g, '').split('～')[0];
     let price = 0;
 
-    const manMatch = cleanText.match(/(\d+)万/);
+    // Parse 億 (oku = hundred million = 100,000,000)
+    const okuMatch = cleanText.match(/(\d+)億/);
+    if (okuMatch) {
+      price += parseInt(okuMatch[1]) * 100000000;
+    }
+
+    // Parse 万 (man = ten thousand = 10,000)
+    // Match the pattern after 億 if present, or standalone
+    const manMatch = cleanText.match(/億(\d+)万/) || cleanText.match(/^(\d+)万/);
     if (manMatch) {
       price += parseInt(manMatch[1]) * 10000;
     }
 
-    const yenMatch = cleanText.match(/万(\d+)円/) || cleanText.match(/(\d+)円/);
-    if (yenMatch && !cleanText.includes('万')) {
-      // Case: "5000円" (unlikely for land but possible for rent)
-      price += parseInt(yenMatch[1]);
-    } else if (yenMatch) {
-      // Case: "1761万7000円" -> 7000 part
+    // Parse remaining yen after 万
+    const yenMatch = cleanText.match(/万(\d+)円/);
+    if (yenMatch) {
       price += parseInt(yenMatch[1]);
     }
 

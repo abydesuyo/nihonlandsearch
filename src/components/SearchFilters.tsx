@@ -47,26 +47,96 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({
                             onChange={(e) => setFilters({ ...filters, prefecture: e.target.value })}
                         >
                             <option value="">All Prefectures</option>
-                            <option value="tokyo">Tokyo</option>
-                            <option value="kanagawa">Kanagawa</option>
-                            <option value="osaka">Osaka</option>
-                            <option value="chiba">Chiba</option>
-                            <option value="saitama">Saitama</option>
+                            <optgroup label="Hokkaido">
+                                <option value="hokkaido">Hokkaido</option>
+                            </optgroup>
+                            <optgroup label="Tohoku">
+                                <option value="aomori">Aomori</option>
+                                <option value="iwate">Iwate</option>
+                                <option value="miyagi">Miyagi</option>
+                                <option value="akita">Akita</option>
+                                <option value="yamagata">Yamagata</option>
+                                <option value="fukushima">Fukushima</option>
+                            </optgroup>
+                            <optgroup label="Kanto">
+                                <option value="tokyo">Tokyo</option>
+                                <option value="kanagawa">Kanagawa</option>
+                                <option value="saitama">Saitama</option>
+                                <option value="chiba">Chiba</option>
+                                <option value="ibaraki">Ibaraki</option>
+                                <option value="tochigi">Tochigi</option>
+                                <option value="gunma">Gunma</option>
+                            </optgroup>
+                            <optgroup label="Shinetsu / Hokuriku">
+                                <option value="niigata">Niigata</option>
+                                <option value="toyama">Toyama</option>
+                                <option value="ishikawa">Ishikawa</option>
+                                <option value="fukui">Fukui</option>
+                                <option value="yamanashi">Yamanashi</option>
+                                <option value="nagano">Nagano</option>
+                            </optgroup>
+                            <optgroup label="Tokai">
+                                <option value="aichi">Aichi</option>
+                                <option value="shizuoka">Shizuoka</option>
+                                <option value="gifu">Gifu</option>
+                                <option value="mie">Mie</option>
+                            </optgroup>
+                            <optgroup label="Kansai">
+                                <option value="osaka">Osaka</option>
+                                <option value="hyogo">Hyogo</option>
+                                <option value="kyoto">Kyoto</option>
+                                <option value="shiga">Shiga</option>
+                                <option value="nara">Nara</option>
+                                <option value="wakayama">Wakayama</option>
+                            </optgroup>
+                            <optgroup label="Chugoku">
+                                <option value="hiroshima">Hiroshima</option>
+                                <option value="okayama">Okayama</option>
+                                <option value="yamaguchi">Yamaguchi</option>
+                                <option value="tottori">Tottori</option>
+                                <option value="shimane">Shimane</option>
+                            </optgroup>
+                            <optgroup label="Shikoku">
+                                <option value="kagawa">Kagawa</option>
+                                <option value="ehime">Ehime</option>
+                                <option value="tokushima">Tokushima</option>
+                                <option value="kochi">Kochi</option>
+                            </optgroup>
+                            <optgroup label="Kyushu / Okinawa">
+                                <option value="fukuoka">Fukuoka</option>
+                                <option value="kumamoto">Kumamoto</option>
+                                <option value="kagoshima">Kagoshima</option>
+                                <option value="nagasaki">Nagasaki</option>
+                                <option value="oita">Oita</option>
+                                <option value="miyazaki">Miyazaki</option>
+                                <option value="saga">Saga</option>
+                                <option value="okinawa">Okinawa</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div className="form-group">
-                        <label htmlFor="maxPrice">Max Price</label>
-                        <select
+                        <label htmlFor="minPrice">Min Price (万円)</label>
+                        <input
+                            type="number"
+                            id="minPrice"
+                            placeholder="e.g. 1000"
+                            value={filters.minPrice ? filters.minPrice / 10000 : ''}
+                            onChange={(e) => setFilters({ ...filters, minPrice: e.target.value ? Number(e.target.value) * 10000 : undefined })}
+                            min="0"
+                            step="100"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="maxPrice">Max Price (万円)</label>
+                        <input
+                            type="number"
                             id="maxPrice"
-                            value={filters.maxPrice || ''}
-                            onChange={(e) => setFilters({ ...filters, maxPrice: Number(e.target.value) })}
-                        >
-                            <option value="">No limit</option>
-                            <option value="30000000">¥3,000万</option>
-                            <option value="50000000">¥5,000万</option>
-                            <option value="100000000">¥1億</option>
-                            <option value="200000000">¥2億</option>
-                        </select>
+                            placeholder="e.g. 5000"
+                            value={filters.maxPrice ? filters.maxPrice / 10000 : ''}
+                            onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value ? Number(e.target.value) * 10000 : undefined })}
+                            min="0"
+                            step="100"
+                        />
                     </div>
                     <div className="form-group">
                         <label htmlFor="minArea">Min Area (m²)</label>

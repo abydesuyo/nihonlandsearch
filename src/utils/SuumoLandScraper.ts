@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { LandProperty, LandSearchFilters, LandShape, RoadDirection, LandRights } from '../types/LandScraperSchema';
+import { LandProperty, LandSearchFilters, LandUseZone, LandShape, RoadDirection, LandRights } from '../types/LandScraperSchema';
 
 // Mapping of prefecture names to Suumo codes
 // ar: Area code (010: Hokkaido, 020: Tohoku, 030: Kanto, 040: Shinetsu/Hokuriku, 050: Tokai, 060: Kansai, 070: Chugoku, 080: Shikoku, 090: Kyushu/Okinawa)
@@ -99,26 +99,17 @@ export class SuumoLandScraper {
           const address = $(element).find('dt:contains("所在地") + dd').text().trim();
           const stationText = $(element).find('dt:contains("沿線・駅") + dd').text().trim();
           const areaText = $(element).find('dt:contains("土地面積") + dd').text().trim();
-          const ratioText = $(element).find('dt:contains("建ぺい率・容積率") + dd').text().trim();
+          const ratioText = $(element).find('dt:contains("建ぺい率・容積率") + dd .dottable-value').text().trim()
+            || $(element).find('dt:contains("建ぺい率・容積率") + dd').text().trim();
+          const utilitiesText = $(element).find('dt:contains("設備") + dd').text().trim();
+          const roadText      = $(element).find('dt:contains("接道状況") + dd').text().trim();
+          const zoneText      = $(element).find('dt:contains("用途地域") + dd').text().trim();
+          const categoryText  = $(element).find('dt:contains("地目") + dd').text().trim();
 
           const price = this.parsePrice(priceText);
           const { landAreaM2, landAreaTsubo } = this.parseArea(areaText);
           const { buildingCoverageRatio, floorAreaRatio } = this.parseRatios(ratioText);
           const { nearestStation, walkTimeToStation } = this.parseStation(stationText);
-
-          const allText = $(element).text();
-          const detailsText = $(element).find('.dottable').text();
-          const hasElectricity = /電気/.test(detailsText) || /電気/.test(allText);
-          const hasGas = /都市ガス|ガス/.test(detailsText) || /都市ガス|ガス/.test(allText);
-          const hasWater = /上水道|公営水道|水道/.test(detailsText) || /上水道|公営水道|水道/.test(allText);
-          const hasSewage = /下水道|公共下水/.test(detailsText) || /下水道|公共下水/.test(allText);
-
-          const roadText = $(element).find('dt:contains("接道状況") + dd, dt:contains("接道") + dd').text().trim();
-          const roadWidthMatch = roadText.match(/(\d+(?:\.\d+)?)m/);
-          const frontRoadWidth = roadWidthMatch ? parseFloat(roadWidthMatch[1]) : 0;
-
-          const zoneText = $(element).find('dt:contains("用途地域") + dd').text().trim();
-          const chimokunText = $(element).find('dt:contains("地目") + dd').text().trim();
 
           // Extract basic info
           const property: LandProperty = {
@@ -137,16 +128,16 @@ export class SuumoLandScraper {
             landAreaM2,
             buildingCoverageRatio,
             floorAreaRatio,
-            landUseZone: (zoneText || 'UNDEFINED') as any,
-            chimoku: chimokunText || undefined,
-            frontRoadWidth,
-            frontRoadDirection: RoadDirection.NORTH, // Need detail page
-            landShape: LandShape.REGULAR, // Need detail page
-            hasElectricity,
-            hasGas,
-            hasWater,
-            hasSewage,
-            landRights: LandRights.OWNERSHIP, // Assumption
+            landUseZone: this.parseLandUseZone(zoneText),
+            landCategory: categoryText || undefined,
+            frontRoadWidth: this.parseRoadWidth(roadText),
+            frontRoadDirection: RoadDirection.NORTH,
+            landShape: LandShape.REGULAR,
+            hasElectricity: utilitiesText.includes('電気'),
+            hasGas:         utilitiesText.includes('都市ガス') || utilitiesText.includes('ガス'),
+            hasWater:       utilitiesText.includes('上水道') || utilitiesText.includes('水道'),
+            hasSewage:      utilitiesText.includes('下水道'),
+            landRights: LandRights.OWNERSHIP,
             restrictions: [],
             listedDate: new Date(),
             lastUpdated: new Date(),
@@ -334,6 +325,30 @@ export class SuumoLandScraper {
       nearestStation: stationMatch ? stationMatch[1] : '',
       walkTimeToStation: walkMatch ? parseInt(walkMatch[1]) : 0
     };
+  }
+
+  private parseRoadWidth(text: string): number {
+    // e.g. "北側 幅員4.0m 公道", "東6.5m", "南側 接道幅員：5m"
+    const match = text.match(/(\d+(?:\.\d+)?)m/);
+    return match ? parseFloat(match[1]) : 0;
+  }
+
+  private parseLandUseZone(text: string): LandUseZone {
+    const map: Record<string, LandUseZone> = {
+      '第1種低層住居専用地域':    LandUseZone.FIRST_CLASS_LOW_RISE_RESIDENTIAL,
+      '第2種低層住居専用地域':    LandUseZone.SECOND_CLASS_LOW_RISE_RESIDENTIAL,
+      '第1種中高層住居専用地域':  LandUseZone.FIRST_CLASS_MEDIUM_HIGH_RESIDENTIAL,
+      '第2種中高層住居専用地域':  LandUseZone.SECOND_CLASS_MEDIUM_HIGH_RESIDENTIAL,
+      '第1種住居地域':            LandUseZone.FIRST_CLASS_RESIDENTIAL,
+      '第2種住居地域':            LandUseZone.SECOND_CLASS_RESIDENTIAL,
+      '準住居地域':               LandUseZone.QUASI_RESIDENTIAL,
+      '近隣商業地域':             LandUseZone.NEIGHBORHOOD_COMMERCIAL,
+      '商業地域':                 LandUseZone.COMMERCIAL,
+      '準工業地域':               LandUseZone.QUASI_INDUSTRIAL,
+      '工業地域':                 LandUseZone.INDUSTRIAL,
+      '工業専用地域':             LandUseZone.EXCLUSIVE_INDUSTRIAL,
+    };
+    return map[text.trim()] ?? LandUseZone.UNDEFINED;
   }
 }
 

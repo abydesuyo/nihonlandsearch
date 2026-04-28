@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, Building } from 'lucide-react';
 import { LandProperty } from '../types/LandScraperSchema';
-import { formatPrice, formatTsubo, getUtilityIcons, getBuildingPotential } from '../utils/formatters';
+import { formatPrice, formatTsubo, getUtilityIcons, getBuildingPotential, getLandUseZoneLabel } from '../utils/formatters';
 
 interface PropertyCardProps {
     property: LandProperty;
@@ -32,7 +32,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                 )}
                 {property.landUseZone !== 'UNDEFINED' && (
                     <div className="zone-badge">
-                        {property.landUseZone}
+                        {getLandUseZoneLabel(property.landUseZone)}
                     </div>
                 )}
             </div>
@@ -63,8 +63,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                     </div>
                     <div className="spec-box">
                         <p className="label">Building Coverage</p>
-                        <p className="value">{property.buildingCoverageRatio}%</p>
-                        <p className="sub-value">Max {potential.maxBuilding.toFixed(0)}m²</p>
+                        <p className="value">{property.buildingCoverageRatio > 0 ? `${property.buildingCoverageRatio}%` : '—'}</p>
+                        <p className="sub-value">{property.buildingCoverageRatio > 0 ? `Max ${potential.maxBuilding.toFixed(0)}m²` : '—'}</p>
                     </div>
                 </div>
 
@@ -72,12 +72,17 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property }) => {
                 <div className="building-potential">
                     <p className="title">🏗️ Building Potential</p>
                     <div className="content">
-                        <span>Floor Area Ratio: {property.floorAreaRatio}%</span>
-                        <span>Max Floor: {potential.maxFloor.toFixed(0)}m²</span>
+                        <span>Floor Area Ratio: {property.floorAreaRatio > 0 ? `${property.floorAreaRatio}%` : '—'}</span>
+                        <span>Max Floor: {property.floorAreaRatio > 0 ? `${potential.maxFloor.toFixed(0)}m²` : '—'}</span>
                     </div>
                     <div className="road-info">
-                        Road Width: {property.frontRoadWidth}m
+                        Road Width: {property.frontRoadWidth > 0 ? `${property.frontRoadWidth}m` : '—'}
                     </div>
+                    {property.landCategory && (
+                        <div className="road-info" style={{ marginTop: '0.25rem' }}>
+                            地目: {property.landCategory}
+                        </div>
+                    )}
                 </div>
 
                 {/* Utilities */}

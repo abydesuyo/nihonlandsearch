@@ -65,6 +65,7 @@ export interface LandProperty {
   buildingCoverageRatio: number;
   floorAreaRatio: number;
   landUseZone: LandUseZone;
+  landCategory?: string;
   heightRestriction?: number;
 
   // Characteristics

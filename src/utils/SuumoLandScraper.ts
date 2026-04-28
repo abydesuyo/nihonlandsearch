@@ -1,6 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { LandProperty, LandSearchFilters, LandUseZone, LandShape, RoadDirection, LandRights } from '../types/LandScraperSchema';
+import { LandProperty, LandSearchFilters, LandShape, RoadDirection, LandRights } from '../types/LandScraperSchema';
 
 // Mapping of prefecture names to Suumo codes
 // ar: Area code (010: Hokkaido, 020: Tohoku, 030: Kanto, 040: Shinetsu/Hokuriku, 050: Tokai, 060: Kansai, 070: Chugoku, 080: Shikoku, 090: Kyushu/Okinawa)
@@ -106,6 +106,20 @@ export class SuumoLandScraper {
           const { buildingCoverageRatio, floorAreaRatio } = this.parseRatios(ratioText);
           const { nearestStation, walkTimeToStation } = this.parseStation(stationText);
 
+          const allText = $(element).text();
+          const detailsText = $(element).find('.dottable').text();
+          const hasElectricity = /電気/.test(detailsText) || /電気/.test(allText);
+          const hasGas = /都市ガス|ガス/.test(detailsText) || /都市ガス|ガス/.test(allText);
+          const hasWater = /上水道|公営水道|水道/.test(detailsText) || /上水道|公営水道|水道/.test(allText);
+          const hasSewage = /下水道|公共下水/.test(detailsText) || /下水道|公共下水/.test(allText);
+
+          const roadText = $(element).find('dt:contains("接道状況") + dd, dt:contains("接道") + dd').text().trim();
+          const roadWidthMatch = roadText.match(/(\d+(?:\.\d+)?)m/);
+          const frontRoadWidth = roadWidthMatch ? parseFloat(roadWidthMatch[1]) : 0;
+
+          const zoneText = $(element).find('dt:contains("用途地域") + dd').text().trim();
+          const chimokunText = $(element).find('dt:contains("地目") + dd').text().trim();
+
           // Extract basic info
           const property: LandProperty = {
             id: url.split('/nc_')[1]?.replace('/', '') || Math.random().toString(36).substr(2, 9),
@@ -123,14 +137,15 @@ export class SuumoLandScraper {
             landAreaM2,
             buildingCoverageRatio,
             floorAreaRatio,
-            landUseZone: LandUseZone.UNDEFINED, // Hard to parse from summary
-            frontRoadWidth: 0, // Need detail page
+            landUseZone: (zoneText || 'UNDEFINED') as any,
+            chimoku: chimokunText || undefined,
+            frontRoadWidth,
             frontRoadDirection: RoadDirection.NORTH, // Need detail page
             landShape: LandShape.REGULAR, // Need detail page
-            hasElectricity: true, // Assumption
-            hasGas: true, // Assumption
-            hasWater: true, // Assumption
-            hasSewage: true, // Assumption
+            hasElectricity,
+            hasGas,
+            hasWater,
+            hasSewage,
             landRights: LandRights.OWNERSHIP, // Assumption
             restrictions: [],
             listedDate: new Date(),

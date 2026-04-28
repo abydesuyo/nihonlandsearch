@@ -65,6 +65,7 @@ export interface LandProperty {
   buildingCoverageRatio: number;
   floorAreaRatio: number;
   landUseZone: LandUseZone;
+  chimoku?: string;
   heightRestriction?: number;
 
   // Characteristics

@@ -1,6 +1,6 @@
 
 import { Zap } from 'lucide-react';
-import { LandProperty } from '../types/LandScraperSchema';
+import { LandProperty, LandUseZone } from '../types/LandScraperSchema';
 
 export const formatPrice = (price: number | bigint) => {
     const priceNum = Number(price);
@@ -28,3 +28,22 @@ export const getBuildingPotential = (property: LandProperty) => {
     const maxFloor = (property.landAreaM2 * property.floorAreaRatio / 100);
     return { maxBuilding, maxFloor };
 };
+
+const LAND_USE_ZONE_LABELS: Record<LandUseZone, string> = {
+    [LandUseZone.FIRST_CLASS_LOW_RISE_RESIDENTIAL]:    '第1種低層住居専用',
+    [LandUseZone.SECOND_CLASS_LOW_RISE_RESIDENTIAL]:   '第2種低層住居専用',
+    [LandUseZone.FIRST_CLASS_MEDIUM_HIGH_RESIDENTIAL]: '第1種中高層住居専用',
+    [LandUseZone.SECOND_CLASS_MEDIUM_HIGH_RESIDENTIAL]:'第2種中高層住居専用',
+    [LandUseZone.FIRST_CLASS_RESIDENTIAL]:             '第1種住居',
+    [LandUseZone.SECOND_CLASS_RESIDENTIAL]:            '第2種住居',
+    [LandUseZone.QUASI_RESIDENTIAL]:                   '準住居',
+    [LandUseZone.NEIGHBORHOOD_COMMERCIAL]:             '近隣商業',
+    [LandUseZone.COMMERCIAL]:                          '商業',
+    [LandUseZone.QUASI_INDUSTRIAL]:                    '準工業',
+    [LandUseZone.INDUSTRIAL]:                          '工業',
+    [LandUseZone.EXCLUSIVE_INDUSTRIAL]:                '工業専用',
+    [LandUseZone.UNDEFINED]:                           '',
+};
+
+export const getLandUseZoneLabel = (zone: LandUseZone): string =>
+    LAND_USE_ZONE_LABELS[zone] ?? '';

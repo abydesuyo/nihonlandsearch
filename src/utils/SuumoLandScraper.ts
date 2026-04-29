@@ -3,29 +3,65 @@ import * as cheerio from 'cheerio';
 import { LandProperty, LandSearchFilters, LandUseZone, LandShape, RoadDirection, LandRights } from '../types/LandScraperSchema';
 
 // Mapping of prefecture names to Suumo codes
-// ar: Area code (030: Kanto, 060: Kansai, etc.)
-// ta: Prefecture code
+// ar: Area code (010: Hokkaido, 020: Tohoku, 030: Kanto, 040: Shinetsu/Hokuriku, 050: Tokai, 060: Kansai, 070: Chugoku, 080: Shikoku, 090: Kyushu/Okinawa)
+// ta: JIS prefecture code (01–47)
 const PREFECTURE_CODES: Record<string, { area: string; prefecture: string }> = {
-  'Tokyo': { area: '030', prefecture: '13' },
-  'tokyo': { area: '030', prefecture: '13' },
-  'Kanagawa': { area: '030', prefecture: '14' },
-  'kanagawa': { area: '030', prefecture: '14' },
-  'Saitama': { area: '030', prefecture: '11' },
-  'saitama': { area: '030', prefecture: '11' },
-  'Chiba': { area: '030', prefecture: '12' },
-  'chiba': { area: '030', prefecture: '12' },
-  'Osaka': { area: '060', prefecture: '27' },
-  'osaka': { area: '060', prefecture: '27' },
-  'Kyoto': { area: '060', prefecture: '26' },
-  'kyoto': { area: '060', prefecture: '26' },
-  'Hyogo': { area: '060', prefecture: '28' },
-  'hyogo': { area: '060', prefecture: '28' },
-  'Aichi': { area: '050', prefecture: '23' }, // Tokai
-  'aichi': { area: '050', prefecture: '23' },
-  'Hokkaido': { area: '010', prefecture: '01' },
+  // Hokkaido
   'hokkaido': { area: '010', prefecture: '01' },
-  'Fukuoka': { area: '090', prefecture: '40' }, // Kyushu
-  'fukuoka': { area: '090', prefecture: '40' }
+  // Tohoku
+  'aomori': { area: '020', prefecture: '02' },
+  'iwate': { area: '020', prefecture: '03' },
+  'miyagi': { area: '020', prefecture: '04' },
+  'akita': { area: '020', prefecture: '05' },
+  'yamagata': { area: '020', prefecture: '06' },
+  'fukushima': { area: '020', prefecture: '07' },
+  // Kanto
+  'ibaraki': { area: '030', prefecture: '08' },
+  'tochigi': { area: '030', prefecture: '09' },
+  'gunma': { area: '030', prefecture: '10' },
+  'saitama': { area: '030', prefecture: '11' },
+  'chiba': { area: '030', prefecture: '12' },
+  'tokyo': { area: '030', prefecture: '13' },
+  'kanagawa': { area: '030', prefecture: '14' },
+  // Shinetsu / Hokuriku
+  'niigata': { area: '040', prefecture: '15' },
+  'toyama': { area: '040', prefecture: '16' },
+  'ishikawa': { area: '040', prefecture: '17' },
+  'fukui': { area: '040', prefecture: '18' },
+  'yamanashi': { area: '040', prefecture: '19' },
+  'nagano': { area: '040', prefecture: '20' },
+  // Tokai
+  'gifu': { area: '050', prefecture: '21' },
+  'shizuoka': { area: '050', prefecture: '22' },
+  'aichi': { area: '050', prefecture: '23' },
+  'mie': { area: '050', prefecture: '24' },
+  // Kansai
+  'shiga': { area: '060', prefecture: '25' },
+  'kyoto': { area: '060', prefecture: '26' },
+  'osaka': { area: '060', prefecture: '27' },
+  'hyogo': { area: '060', prefecture: '28' },
+  'nara': { area: '060', prefecture: '29' },
+  'wakayama': { area: '060', prefecture: '30' },
+  // Chugoku
+  'tottori': { area: '070', prefecture: '31' },
+  'shimane': { area: '070', prefecture: '32' },
+  'okayama': { area: '070', prefecture: '33' },
+  'hiroshima': { area: '070', prefecture: '34' },
+  'yamaguchi': { area: '070', prefecture: '35' },
+  // Shikoku
+  'tokushima': { area: '080', prefecture: '36' },
+  'kagawa': { area: '080', prefecture: '37' },
+  'ehime': { area: '080', prefecture: '38' },
+  'kochi': { area: '080', prefecture: '39' },
+  // Kyushu / Okinawa
+  'fukuoka': { area: '090', prefecture: '40' },
+  'saga': { area: '090', prefecture: '41' },
+  'nagasaki': { area: '090', prefecture: '42' },
+  'kumamoto': { area: '090', prefecture: '43' },
+  'oita': { area: '090', prefecture: '44' },
+  'miyazaki': { area: '090', prefecture: '45' },
+  'kagoshima': { area: '090', prefecture: '46' },
+  'okinawa': { area: '090', prefecture: '47' },
 };
 
 export class SuumoLandScraper {
@@ -63,7 +99,12 @@ export class SuumoLandScraper {
           const address = $(element).find('dt:contains("所在地") + dd').text().trim();
           const stationText = $(element).find('dt:contains("沿線・駅") + dd').text().trim();
           const areaText = $(element).find('dt:contains("土地面積") + dd').text().trim();
-          const ratioText = $(element).find('dt:contains("建ぺい率・容積率") + dd').text().trim();
+          const ratioText = $(element).find('dt:contains("建ぺい率・容積率") + dd .dottable-value').text().trim()
+            || $(element).find('dt:contains("建ぺい率・容積率") + dd').text().trim();
+          const utilitiesText = $(element).find('dt:contains("設備") + dd').text().trim();
+          const roadText      = $(element).find('dt:contains("接道状況") + dd').text().trim();
+          const zoneText      = $(element).find('dt:contains("用途地域") + dd').text().trim();
+          const categoryText  = $(element).find('dt:contains("地目") + dd').text().trim();
 
           const price = this.parsePrice(priceText);
           const { landAreaM2, landAreaTsubo } = this.parseArea(areaText);
@@ -87,15 +128,16 @@ export class SuumoLandScraper {
             landAreaM2,
             buildingCoverageRatio,
             floorAreaRatio,
-            landUseZone: LandUseZone.UNDEFINED, // Hard to parse from summary
-            frontRoadWidth: 0, // Need detail page
-            frontRoadDirection: RoadDirection.NORTH, // Need detail page
-            landShape: LandShape.REGULAR, // Need detail page
-            hasElectricity: true, // Assumption
-            hasGas: true, // Assumption
-            hasWater: true, // Assumption
-            hasSewage: true, // Assumption
-            landRights: LandRights.OWNERSHIP, // Assumption
+            landUseZone: this.parseLandUseZone(zoneText),
+            landCategory: categoryText || undefined,
+            frontRoadWidth: this.parseRoadWidth(roadText),
+            frontRoadDirection: RoadDirection.NORTH,
+            landShape: LandShape.REGULAR,
+            hasElectricity: utilitiesText.includes('電気'),
+            hasGas:         utilitiesText.includes('都市ガス') || utilitiesText.includes('ガス'),
+            hasWater:       utilitiesText.includes('上水道') || utilitiesText.includes('水道'),
+            hasSewage:      utilitiesText.includes('下水道'),
+            landRights: LandRights.OWNERSHIP,
             restrictions: [],
             listedDate: new Date(),
             lastUpdated: new Date(),
@@ -155,8 +197,13 @@ export class SuumoLandScraper {
     params.append('pc', (filters.limit || 100).toString());
 
     // Price (kb and kt are in 万円 - 10,000 yen units)
-    if (filters.minPrice) params.append('kb', (filters.minPrice / 10000).toString());
-    if (filters.maxPrice) params.append('kt', (filters.maxPrice / 10000).toString());
+    // Guard with > 0 to skip 0/undefined/NaN; use Math.floor to ensure integer values
+    if (filters.minPrice && filters.minPrice > 0) {
+      params.append('kb', Math.floor(filters.minPrice / 10000).toString());
+    }
+    if (filters.maxPrice && filters.maxPrice > 0) {
+      params.append('kt', Math.floor(filters.maxPrice / 10000).toString());
+    }
 
     // Area in m2 (mb = minimum, tt = maximum)
     // Suumo has a limit of 150 sqm for these parameters
@@ -278,6 +325,30 @@ export class SuumoLandScraper {
       nearestStation: stationMatch ? stationMatch[1] : '',
       walkTimeToStation: walkMatch ? parseInt(walkMatch[1]) : 0
     };
+  }
+
+  private parseRoadWidth(text: string): number {
+    // e.g. "北側 幅員4.0m 公道", "東6.5m", "南側 接道幅員：5m"
+    const match = text.match(/(\d+(?:\.\d+)?)m/);
+    return match ? parseFloat(match[1]) : 0;
+  }
+
+  private parseLandUseZone(text: string): LandUseZone {
+    const map: Record<string, LandUseZone> = {
+      '第1種低層住居専用地域':    LandUseZone.FIRST_CLASS_LOW_RISE_RESIDENTIAL,
+      '第2種低層住居専用地域':    LandUseZone.SECOND_CLASS_LOW_RISE_RESIDENTIAL,
+      '第1種中高層住居専用地域':  LandUseZone.FIRST_CLASS_MEDIUM_HIGH_RESIDENTIAL,
+      '第2種中高層住居専用地域':  LandUseZone.SECOND_CLASS_MEDIUM_HIGH_RESIDENTIAL,
+      '第1種住居地域':            LandUseZone.FIRST_CLASS_RESIDENTIAL,
+      '第2種住居地域':            LandUseZone.SECOND_CLASS_RESIDENTIAL,
+      '準住居地域':               LandUseZone.QUASI_RESIDENTIAL,
+      '近隣商業地域':             LandUseZone.NEIGHBORHOOD_COMMERCIAL,
+      '商業地域':                 LandUseZone.COMMERCIAL,
+      '準工業地域':               LandUseZone.QUASI_INDUSTRIAL,
+      '工業地域':                 LandUseZone.INDUSTRIAL,
+      '工業専用地域':             LandUseZone.EXCLUSIVE_INDUSTRIAL,
+    };
+    return map[text.trim()] ?? LandUseZone.UNDEFINED;
   }
 }
 

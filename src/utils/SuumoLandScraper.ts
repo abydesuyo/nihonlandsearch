@@ -111,6 +111,9 @@ export class SuumoLandScraper {
           const { buildingCoverageRatio, floorAreaRatio } = this.parseRatios(ratioText);
           const { nearestStation, walkTimeToStation } = this.parseStation(stationText);
 
+          const prefMatch = address.match(/^(.+?[都道府県])/);
+          const cityMatch = address.match(/[都道府県](.+?(?:市|区|町|村))/);
+
           // Extract basic info
           const property: LandProperty = {
             id: url.split('/nc_')[1]?.replace('/', '') || Math.random().toString(36).substr(2, 9),
@@ -118,8 +121,8 @@ export class SuumoLandScraper {
             price,
             pricePerTsubo: landAreaTsubo > 0 ? Number(price) / landAreaTsubo : 0,
             pricePerM2: landAreaM2 > 0 ? Number(price) / landAreaM2 : 0,
-            prefecture: 'Tokyo', // Default for now, should parse from address
-            city: address.split('都')[1]?.split('市')[0] || '',
+            prefecture: prefMatch?.[1] || 'Unknown',
+            city: cityMatch?.[1] || '',
             district: address,
             address,
             nearestStation,
@@ -295,35 +298,57 @@ export class SuumoLandScraper {
   }
 
   private parseRatios(text: string): { buildingCoverageRatio: number, floorAreaRatio: number } {
-    // Suumo uses various formats:
-    // Format 1: "建ペい率:40%(角地:50%) 容積率:80%"
-    // Format 2: "建ペい率：40％、容積率：80％" (Japanese colon and full-width %)
-    // Format 3: "建ぺい率：40/容積率：80" (slash separator, no %)
+    if (!text || text === '-') return { buildingCoverageRatio: 0, floorAreaRatio: 0 };
 
-    // Try to match building coverage ratio (建ペい率 or 建ぺい率)
-    // Match either : or ：, then digits, optionally followed by % or ％
-    const kenpeiMatch = text.match(/建[ペぺ]い率[：:]\s*(\d+)[％%]?/) ||
-      text.match(/(\d+)[％%]?\/容積率/); // For slash format
+    // Label-based formats: "建ペい率：50％、容積率：100％" or "建ぺい率60％、容積率150％"
+    // colon is optional (some listings omit it)
+    const kenpei = text.match(/建[ペぺ]い率[：:]?\s*(\d+)/);
+    const yoseki = text.match(/容積率[：:]?\s*(\d+)/);
+    if (kenpei || yoseki) {
+      return {
+        buildingCoverageRatio: kenpei ? parseInt(kenpei[1]) : 0,
+        floorAreaRatio: yoseki ? parseInt(yoseki[1]) : 0
+      };
+    }
 
-    // Try to match floor area ratio (容積率)
-    const yosekiMatch = text.match(/容積率[：:]\s*(\d+)[％%]?/);
+    // Strip parenthetical notes e.g. "50％（角地60％）・100％" → "50％・100％"
+    const stripped = text.replace(/[（(][^）)]*[）)]/g, '').trim();
 
-    const result = {
-      buildingCoverageRatio: kenpeiMatch ? parseInt(kenpeiMatch[1]) : 0,
-      floorAreaRatio: yosekiMatch ? parseInt(yosekiMatch[1]) : 0
-    };
+    // Value-only with ・ separator: "60％・200％" or "60%・200%"
+    const dotMatch = stripped.match(/(\d+)[％%][・](\d+)[％%]/);
+    if (dotMatch) {
+      return { buildingCoverageRatio: parseInt(dotMatch[1]), floorAreaRatio: parseInt(dotMatch[2]) };
+    }
 
-    return result;
+    // Value-only with space separator: "50％　100％" (includes full-width space 　)
+    const spaceMatch = stripped.match(/(\d+)[％%][\s　]+(\d+)[％%]/);
+    if (spaceMatch) {
+      return { buildingCoverageRatio: parseInt(spaceMatch[1]), floorAreaRatio: parseInt(spaceMatch[2]) };
+    }
+
+    return { buildingCoverageRatio: 0, floorAreaRatio: 0 };
   }
 
   private parseStation(text: string): { nearestStation: string, walkTimeToStation: number } {
-    // Example: "ＪＲ青梅線「昭島」徒歩20分"
-    const stationMatch = text.match(/「(.+)」/);
+    // Walk-only: "ＪＲ青梅線「昭島」徒歩20分"
+    // Bus+walk:  "ＪＲ内房線「九重」バス18分停歩61分" — total = bus + stop-walk
+    // Range:     "北総線「印西牧の原」徒歩30分～31分" — take first (minimum)
+    const stationMatch = text.match(/「(.+?)」/);
     const walkMatch = text.match(/徒歩(\d+)分/);
+    const busMatch = text.match(/バス(\d+)分/);
+    const stopWalkMatch = text.match(/停歩(\d+)分/);
+
+    let time = 0;
+    if (busMatch) {
+      time = parseInt(busMatch[1]);
+      if (stopWalkMatch) time += parseInt(stopWalkMatch[1]);
+    } else if (walkMatch) {
+      time = parseInt(walkMatch[1]);
+    }
 
     return {
       nearestStation: stationMatch ? stationMatch[1] : '',
-      walkTimeToStation: walkMatch ? parseInt(walkMatch[1]) : 0
+      walkTimeToStation: time
     };
   }
 
